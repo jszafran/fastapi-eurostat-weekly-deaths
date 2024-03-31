@@ -1,0 +1,12 @@
+[project]
+name = "fastapi_eurostat_weekly_deaths"
+description = "Application for parsing and transforming Eurostat Weekly Deaths data."
+
+dependencies = [
+    "fastapi==0.110.0",
+    "pydantic==2.6.4",
+]
+
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
