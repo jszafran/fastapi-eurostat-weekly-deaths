@@ -4,6 +4,8 @@ from typing import Iterator, Protocol, Self
 
 import httpx
 
+from fastapi_eurostat_weekly_deaths.models import MetadataInfo, WeekOfYear
+
 DATA_URL = "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/demo_r_mwk_05?format=TSV&compressed=false"
 
 
@@ -39,6 +41,8 @@ class HttpEurostatData:
 
 
 class EurostatDB:
+    """In-memory database serving Eurostat Weekly Deaths data."""
+
     def __init__(self) -> None:
         self._data: dict[str, dict[str, float]] | None = None
         self.snapshot_date: datetime.date | None = None
@@ -51,9 +55,31 @@ class EurostatDB:
         time_periods = [x.strip() for x in time_periods]
         return metadata + time_periods
 
+    @staticmethod
+    def _is_header_sorted(header: list[str]) -> bool:
+        weeks_of_year = [WeekOfYear.from_string(col) for col in header]
+        return weeks_of_year == sorted(weeks_of_year, key=lambda x: (x.year, x.week))
+
+    @staticmethod
+    def parse_metadata_info(metadata: str) -> MetadataInfo:
+        _, age, sex, _, country = metadata.split(",")
+        return MetadataInfo(
+            age=age,
+            sex=sex,
+            country=country,
+        )
+
+    def extract_weekly_deaths(self, v: str) -> float | None:
+        pass
+
     @classmethod
     def from_data_source(cls, data_source: EurostatDataSource) -> Self:
+        """Constructs EurostatDB from given data source (file or live Eurostat data)."""
         iterator = data_source.iter_lines()
         header = cls._parse_header(next(iterator))
-        print(header)
+        print(cls._is_header_sorted(header[5:]))
+        for line in iterator:
+            metadata, *data_points = line.split("\t")
+            _, age, sex, _, country = metadata.split(",")
+
         return cls()
