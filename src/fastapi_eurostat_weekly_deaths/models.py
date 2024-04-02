@@ -24,4 +24,4 @@ class WeekOfYear(BaseModel):
 class DataPoint(BaseModel):
     week_of_year: WeekOfYear
     metadata_info: MetadataInfo
-    weekly_deaths: int
+    weekly_deaths: int | None = None
