@@ -5,7 +5,8 @@ from typing import Iterator, Protocol, Self
 
 import httpx
 
-from fastapi_eurostat_weekly_deaths.models import DataPoint, MetadataInfo, WeekOfYear
+from fastapi_eurostat_weekly_deaths import data_parser
+from fastapi_eurostat_weekly_deaths.models import DataPoint, WeekOfYear
 
 DATA_URL = "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/demo_r_mwk_05?format=TSV&compressed=false"
 
@@ -56,53 +57,24 @@ class EurostatDB:
         self.data: dict[str, list[int | None]] = data
         self.snapshot_date: datetime.date | None = None
 
-    @staticmethod
-    def _parse_header(header: str) -> list[str]:
-        """Parses header string, apply data cleansing and returns it as a list of strings."""
-        metadata_str, *time_periods = header.strip().split("\t")
-        metadata = metadata_str.replace(r"\TIME_PERIOD", "").split(",")
-        time_periods = [x.strip() for x in time_periods]
-        return metadata + time_periods
-
-    @staticmethod
-    def _is_header_sorted(header: list[str]) -> bool:
-        weeks_of_year = [WeekOfYear.from_string(col) for col in header]
-        return weeks_of_year == sorted(weeks_of_year, key=lambda x: (x.year, x.week))
-
-    @staticmethod
-    def _parse_metadata_info(metadata: str) -> MetadataInfo:
-        _, age, sex, _, country = metadata.split(",")
-        return MetadataInfo(
-            age=age,
-            sex=sex,
-            country=country,
-        )
-
-    @staticmethod
-    def _extract_weekly_deaths(v: str) -> int | None:
-        v = v.replace("p", "").replace(":", "").strip()
-        try:
-            return int(v)
-        except ValueError:
-            return None
-
     @classmethod
     def from_data_source(cls, data_source: EurostatDataSource) -> Self:
         """Constructs EurostatDB from given data source (file or live Eurostat data)."""
+
         iterator = data_source.iter_lines()
-        header = cls._parse_header(next(iterator))
+        header = data_parser.parse_header(next(iterator))
         week_of_years_ix_map = {i: WeekOfYear.from_string(v) for i, v in enumerate(header[5:])}
         data = defaultdict(list)
 
         for line in iterator:
             metadata_str, *data_points = line.split("\t")
-            metadata_info = cls._parse_metadata_info(metadata_str)
+            metadata_info = data_parser.parse_metadata_info(metadata_str)
             for i, dp in enumerate(data_points):
                 week_of_year = week_of_years_ix_map[i]
                 data_point = DataPoint(
                     week_of_year=week_of_year,
                     metadata_info=metadata_info,
-                    weekly_deaths=cls._extract_weekly_deaths(dp),
+                    weekly_deaths=data_parser.extract_weekly_deaths(dp),
                 )
                 data_point_key = _data_point_db_key(data_point)
                 data[data_point_key].append(data_point.weekly_deaths)
