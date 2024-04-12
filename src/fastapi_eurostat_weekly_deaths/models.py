@@ -17,7 +17,7 @@ class WeekOfYear(BaseModel):
     def from_string(cls, v: str) -> Self:
         year_str, week_str = v.split("-")
         year = int(year_str)
-        week = week_str.replace("W", "")
+        week = int(week_str.replace("W", ""))
         return cls(week=week, year=year)
 
 

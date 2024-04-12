@@ -1,7 +1,7 @@
 import pathlib
 import sys
 from contextlib import asynccontextmanager
-from typing import Annotated
+from typing import Annotated, AsyncGenerator
 
 import loguru
 from fastapi import FastAPI, Query
@@ -19,7 +19,7 @@ class EurostatAPI(FastAPI):
 
 
 @asynccontextmanager  # noqa
-async def lifespan(app: EurostatAPI) -> None:
+async def lifespan(app: EurostatAPI) -> AsyncGenerator[None, None]:
     setup_logging()
     if app.logger is None:
         raise RuntimeError()
@@ -63,7 +63,7 @@ def get_weekly_deaths(
     sex: str | None = "T",
 ) -> list[CountryYearlyData]:
     query = WeeklyDeathsQuery(countries=countries, year_from=year_from, year_to=year_to, age=age, sex=sex)
-    result = app.db.query_weekly_deaths(query)
+    result = app.db.query_weekly_deaths(query)  # type: ignore
     return result
 
 
