@@ -1,26 +1,73 @@
 import pathlib
+import sys
+from contextlib import asynccontextmanager
+from typing import Annotated
 
-import uvicorn
-from fastapi import FastAPI
+import loguru
+from fastapi import FastAPI, Query
+from starlette.responses import PlainTextResponse
 
 from fastapi_eurostat_weekly_deaths.eurostat import EurostatDB, FileEurostatData
-
-app = FastAPI()
-
-
-@app.get("/")
-async def index():
-    return {"Hello": "world"}
+from fastapi_eurostat_weekly_deaths.models import CountryYearlyData, WeeklyDeathsQuery
 
 
-@app.on_event("startup")
-def eurostat_database() -> None:
-    print("Starting database")
+class EurostatAPI(FastAPI):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.logger: loguru.Logger | None = None
+        self.db: EurostatDB | None = None
+
+
+@asynccontextmanager  # noqa
+async def lifespan(app: EurostatAPI) -> None:
+    setup_logging()
+    if app.logger is None:
+        raise RuntimeError()
+    app.logger.info("Starting the database.")
     test_file = pathlib.Path(__file__).parent.parent.parent / "test_data" / "20240401.tsv"
     data_source = FileEurostatData(test_file)
     db = EurostatDB.from_data_source(data_source)
-    app.eurostat_db = db
+    app.db = db
+    app.logger.info("Database created successfully.")
+    yield
+
+
+app = EurostatAPI(lifespan=lifespan)
+
+
+def setup_logging():
+    from loguru import logger
+
+    # add loguru handler
+    logger.add(
+        sys.stderr,
+        format="{time} {level} {message}",
+        level="INFO",
+    )
+
+    app.logger = logger
+    app.logger.info("Logger has been setup.")
+
+
+@app.get("/api/healthcheck/", response_class=PlainTextResponse)
+async def healthcheck():
+    return "200"
+
+
+@app.get("/api/weekly_deaths/")
+def get_weekly_deaths(
+    countries: Annotated[list[str], Query()],
+    year_from: int,
+    year_to: int,
+    age: str | None = "TOTAL",
+    sex: str | None = "T",
+) -> list[CountryYearlyData]:
+    query = WeeklyDeathsQuery(countries=countries, year_from=year_from, year_to=year_to, age=age, sex=sex)
+    result = app.db.query_weekly_deaths(query)
+    return result
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, port=8888)
+    import uvicorn
+
+    uvicorn.run(app, port=8889, log_config=None)

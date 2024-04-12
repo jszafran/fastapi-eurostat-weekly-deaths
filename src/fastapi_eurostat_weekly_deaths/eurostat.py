@@ -1,12 +1,12 @@
 import datetime
 import pathlib
 from collections import defaultdict
-from typing import Iterator, Protocol, Self
+from typing import Iterator, List, Protocol, Self
 
 import httpx
 
 from fastapi_eurostat_weekly_deaths import data_parser
-from fastapi_eurostat_weekly_deaths.models import DataPoint, WeekOfYear
+from fastapi_eurostat_weekly_deaths.models import CountryYearlyData, DataPoint, WeeklyDeathsQuery, WeekOfYear
 
 DATA_URL = "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/data/demo_r_mwk_05?format=TSV&compressed=false"
 
@@ -80,3 +80,19 @@ class EurostatDB:
                 data[data_point_key].append(data_point.weekly_deaths)
 
         return cls(data=data)
+
+    def query_weekly_deaths(self, query: WeeklyDeathsQuery) -> List[CountryYearlyData]:
+        results = []
+
+        for country in query.countries:
+            for year in range(query.year_from, query.year_to + 1):
+                weekly_deaths = self.data.get(f"{country}-{year}-{query.sex}-{query.age}", [])
+                results.append(
+                    CountryYearlyData(
+                        year=year,
+                        country=country,
+                        weekly_deaths=weekly_deaths,
+                    )
+                )
+
+        return results
