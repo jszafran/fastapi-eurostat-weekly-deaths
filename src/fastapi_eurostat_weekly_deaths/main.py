@@ -1,4 +1,3 @@
-import pathlib
 import sys
 from contextlib import asynccontextmanager
 from typing import Annotated, AsyncGenerator
@@ -7,7 +6,7 @@ import loguru
 from fastapi import FastAPI, Query
 from starlette.responses import PlainTextResponse
 
-from fastapi_eurostat_weekly_deaths.eurostat import EurostatDB, FileEurostatData
+from fastapi_eurostat_weekly_deaths.eurostat import EurostatDB, HttpEurostatData
 from fastapi_eurostat_weekly_deaths.models import CountryYearlyData, WeeklyDeathsQuery
 
 
@@ -24,8 +23,7 @@ async def lifespan(app: EurostatAPI) -> AsyncGenerator[None, None]:
     if app.logger is None:
         raise RuntimeError()
     app.logger.info("Starting the database.")
-    test_file = pathlib.Path(__file__).parent.parent.parent / "test_data" / "20240401.tsv"
-    data_source = FileEurostatData(test_file)
+    data_source = HttpEurostatData()
     db = EurostatDB.from_data_source(data_source)
     app.db = db
     app.logger.info("Database created successfully.")
@@ -62,7 +60,13 @@ def get_weekly_deaths(
     age: str | None = "TOTAL",
     sex: str | None = "T",
 ) -> list[CountryYearlyData]:
-    query = WeeklyDeathsQuery(countries=countries, year_from=year_from, year_to=year_to, age=age, sex=sex)
+    query = WeeklyDeathsQuery(
+        countries=countries,
+        year_from=year_from,
+        year_to=year_to,
+        age=age,
+        sex=sex,
+    )
     result = app.db.query_weekly_deaths(query)  # type: ignore
     return result
 
@@ -70,4 +74,4 @@ def get_weekly_deaths(
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, port=8889, log_config=None)
+    uvicorn.run(app, log_config=None)

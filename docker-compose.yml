@@ -1,0 +1,13 @@
+version: "3.4"
+
+services:
+  eurostat_api:
+    build:
+      context: .
+      dockerfile: dev.Dockerfile
+    command: uvicorn fastapi_eurostat_weekly_deaths.main:app --reload --workers 1 --host 0.0.0.0 --port 8888
+    environment:
+      API_PORT: 8888
+    ports:
+      - "8888:8888"
+    restart: always
