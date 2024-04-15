@@ -1,0 +1,15 @@
+# healtcheck route
+GET localhost:8888/api/healthcheck/
+
+###
+# weekly deaths info route for single country and all parameters passed explicitly
+GET localhost:8888/api/weekly_deaths/?countries=PL&year_from=2020&year_to=2021&age=TOTAL&gender=T
+
+###
+# weekly deaths info route for single country and gender / sex not passed
+# (default values should be used)
+GET localhost:8888/api/weekly_deaths/?countries=PL&year_from=2020&year_to=2023
+
+###
+# weekly deaths info route for multiple countries (PL, DE, CZ)
+GET localhost:8888/api/weekly_deaths/?countries=PL&countries=DE&countries=CZ&year_from=2020&year_to=2023
